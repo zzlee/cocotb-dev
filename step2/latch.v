@@ -3,7 +3,7 @@
 // Date: Thu Oct 31 09:09:21 2024
 
 
-`timescale 1ns/10ps
+`timescale 1ns/1ps
 
 module latch (
     q,
