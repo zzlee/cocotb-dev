@@ -4,10 +4,10 @@ import random
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, Timer
+from cocotb.triggers import RisingEdge, Timer, ClockCycles
 from cocotb.types import LogicArray
 
-@cocotb.test()
+# @cocotb.test()
 async def testbench0(dut):
     dut.rst.value = 0;
     dut.request.value = 0;
@@ -16,22 +16,26 @@ async def testbench0(dut):
     clock = Clock(dut.clk, 10, units="ns")
     cocotb.start_soon(clock.start(start_high=False))
 
-    await RisingEdge(dut.clk);
+    await ClockCycles(dut.clk, 1);
     dut.rst.value = 1;
-    await RisingEdge(dut.clk);
+    await ClockCycles(dut.clk, 1);
     dut.rst.value = 0;
 
-    for i in range(100):
-        v = random.randint(0, 3);
+    v = (1 << 2);
 
-        dut.request.value = 1 << v;
-        await RisingEdge(dut.clk);
+    dut.request = v;
+    dut.acknowledge = v;
+    await ClockCycles(dut.clk, 1);
 
-        dut.acknowledge = dut.grant.value;
-        await RisingEdge(dut.clk);
+    dut.acknowledge = (1 << 2);
+    dut.request = (1 << 2);
+    await Timer(100, 'ns');
 
-# @cocotb.test()
+@cocotb.test()
 async def testbench1(dut):
+    clock = Clock(dut.clk, 10, units="ns")
+    cocotb.start_soon(clock.start(start_high=False))
+
     for i in range(16):
         dut.input_unencoded.value = i;
-        await Timer(10, 'ns');
+        await ClockCycles(dut.clk, 1);

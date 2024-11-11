@@ -4,7 +4,7 @@ import random
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, Timer
+from cocotb.triggers import RisingEdge, Timer, ClockCycles
 from cocotb.types import LogicArray
 
 @cocotb.test()
@@ -20,4 +20,4 @@ async def testbench(dut):
     for i in range(10):
         dut.c.value = v;
         v = not v;
-        await Timer(100, units='ns');
+        await ClockCycles(dut.clk, 1);

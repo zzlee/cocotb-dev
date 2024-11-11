@@ -39,9 +39,12 @@ endmodule
 
 module top1 #
 (
-    parameter WIDTH = 4
+    parameter WIDTH = 32
 )
 (
+    input  wire                     clk,
+    input  wire                     rst,
+
     input  wire [WIDTH-1:0]         input_unencoded,
     output wire                     output_valid,
     output wire [$clog2(WIDTH)-1:0] output_encoded,
