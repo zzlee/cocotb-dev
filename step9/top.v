@@ -19,12 +19,12 @@ module top #
 
 parameter STATE_BITS = 3;
 localparam [STATE_BITS-1:0]
-	STATE_IDLE = STATE_BITS'('d0),
-	STATE_STEP1 = STATE_BITS'('d1),
-	STATE_STEP2 = STATE_BITS'('d2),
-	STATE_STEP3 = STATE_BITS'('d3),
-	STATE_STEP4 = STATE_BITS'('d4),
-	STATE_STEP5 = STATE_BITS'('d5);
+	STATE_IDLE = 'd0,
+	STATE_STEP1 = 'd1,
+	STATE_STEP2 = 'd2,
+	STATE_STEP3 = 'd3,
+	STATE_STEP4 = 'd4,
+	STATE_STEP5 = 'd5;
 
 reg [STATE_BITS-1:0]    	state_cur;
 reg [PORTS-1:0]         	intr_cur, intr_last, intr_next;
@@ -47,7 +47,7 @@ priority_encoder_inst (
 always @(posedge clk) begin
 	if (rst) begin
 		intr_vec_req <= 0;
-		intr_last <= PORTS'('h0);
+		intr_last <= 'h0;
 		state_cur <= STATE_IDLE;
 	end else begin
 		case (state_cur)
@@ -88,7 +88,7 @@ always @(posedge clk) begin
 
 			STATE_STEP4: begin
 				intr_vec_req <= 0;
-				intr_num <= PORTS'('h0);
+				intr_num <= 'h0;
 				intr_cur <= intr_next;
 
 				cycles_cur <= INTR_CYCLES;
@@ -105,10 +105,6 @@ always @(posedge clk) begin
 			end
 		endcase
 	end
-end
-
-// FSM
-always @* begin
 end
 
 endmodule
