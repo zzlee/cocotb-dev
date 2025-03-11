@@ -4,17 +4,17 @@
 
 module top #
 (
-	parameter PORTS = 4,
+	parameter PORTS = 32,
 	parameter INTR_CYCLES = 2
 )
 (
-	input wire              clk,
-	input wire              rst,
+	input wire              			clk,
+	input wire              			rst,
 
-	input wire[PORTS-1:0]   intr,
+	input wire[PORTS-1:0]   			intr,
 
-	output reg             intr_vec_req,
-	output reg[31:0]       intr_num
+	output reg             				intr_vec_req,
+	output reg[$clog2(PORTS)-1:0]       intr_num
 );
 
 parameter STATE_BITS = 3;
@@ -30,7 +30,7 @@ reg [STATE_BITS-1:0]    	state_cur;
 reg [PORTS-1:0]         	intr_cur, intr_last, intr_next;
 reg            				prio_enc_valid;
 reg [$clog2(PORTS)-1:0] 	prio_enc_encoded;
-reg [PORTS-1:0]         	intr_mask;
+reg [PORTS-1:0]         	prio_env_unencoded;
 reg [7:0]					cycles_cur;
 
 priority_encoder #(
@@ -41,7 +41,7 @@ priority_encoder_inst (
 	.input_unencoded(intr_cur),
 	.output_valid(prio_enc_valid),
 	.output_encoded(prio_enc_encoded),
-	.output_unencoded(intr_mask)
+	.output_unencoded(prio_env_unencoded)
 );
 
 always @(posedge clk) begin
@@ -66,8 +66,8 @@ always @(posedge clk) begin
 			STATE_STEP2: begin
 				if(prio_enc_valid) begin
 					intr_vec_req <= 1;
-					intr_num <= intr_mask;
-					intr_next <= intr_cur & ~intr_mask;
+					intr_num <= prio_enc_encoded;
+					intr_next <= intr_cur & ~prio_env_unencoded;
 
 					cycles_cur <= INTR_CYCLES;
 					state_cur <= STATE_STEP3;

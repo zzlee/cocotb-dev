@@ -20,8 +20,8 @@ async def testbench0(dut):
     dut.rst.value = 0;
     await ClockCycles(dut.clk, 1);
 
-    dut.intr.value = LogicArray("1011");
-    await Timer(500, 'ns');
+    dut.intr.value = LogicArray("10001000100010001000000011101011");
+    await Timer(800, 'ns');
 
-    dut.intr.value = LogicArray("0101");
+    dut.intr.value = LogicArray("10000000000000000000000000000101");
     await Timer(500, 'ns');
