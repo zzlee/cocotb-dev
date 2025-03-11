@@ -28,9 +28,9 @@ localparam [STATE_BITS-1:0]
 
 reg [STATE_BITS-1:0]    	state_cur;
 reg [PORTS-1:0]         	intr_cur, intr_last, intr_next;
-reg            				prio_enc_valid;
-reg [$clog2(PORTS)-1:0] 	prio_enc_encoded;
-reg [PORTS-1:0]         	prio_env_unencoded;
+wire 		  				prio_enc_valid;
+wire [$clog2(PORTS)-1:0] 	prio_enc_encoded;
+wire [PORTS-1:0]         	prio_env_unencoded;
 reg [7:0]					cycles_cur;
 
 priority_encoder #(
