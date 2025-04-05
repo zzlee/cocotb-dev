@@ -5,7 +5,8 @@
 module top #
 (
 	parameter PORTS = 32,
-	parameter INTR_CYCLES = 2
+	parameter HIGH_CYCLES = 3,
+	parameter LOW_CYCLES = 64
 )
 (
 	input wire              			clk,
@@ -69,7 +70,7 @@ always @(posedge clk) begin
 					intr_num <= prio_enc_encoded;
 					intr_next <= intr_cur & ~prio_env_unencoded;
 
-					cycles_cur <= INTR_CYCLES;
+					cycles_cur <= HIGH_CYCLES;
 					state_cur <= STATE_STEP3;
 				end
 				else begin
@@ -91,7 +92,7 @@ always @(posedge clk) begin
 				intr_num <= 'h0;
 				intr_cur <= intr_next;
 
-				cycles_cur <= INTR_CYCLES;
+				cycles_cur <= LOW_CYCLES;
 				state_cur <= STATE_STEP5;
 			end
 
