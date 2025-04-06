@@ -4,8 +4,8 @@ module tb_data_gen # (
 	parameter WIDTH = 8
 )
 (
-	input wire clk,
-	input wire reset_n,
+	input wire ap_clk,
+	input wire ap_rst_n,
 
 	input [31:0] size,
 
@@ -24,8 +24,8 @@ data_gen #(
 	.WIDTH(WIDTH)
 )
 data_gen_U (
-	.clk(clk),
-	.reset_n(reset_n),
+	.ap_clk(ap_clk),
+	.ap_rst_n(ap_rst_n),
 
 	.size(size),
 	.ap_start(ap_start),

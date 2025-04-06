@@ -5,8 +5,8 @@ module data_gen
 	parameter WIDTH = 32
 )
 (
-	input clk,
-	input reset_n,
+	input ap_clk,
+	input ap_rst_n,
 
 	input [31:0] size,
 
@@ -22,15 +22,11 @@ module data_gen
 );
 
 	localparam
-		C_STATE_BITS = 2;
+		IDLE = 'b000,
+		START = 'b001,
+		DONE = 'b010;
 
-	localparam
-		IDLE = 0,
-		READY = 1,
-		START = 2,
-		DONE = 3;
-
-	reg [C_STATE_BITS-1:0] state, state_next;
+	reg [2:0] state, state_next;
 	reg [31:0] count, count_next;
 	reg [7:0] data_seed, data_seed_next;
 
@@ -64,21 +60,17 @@ module data_gen
 
 					ap_ready = 1;
 					ap_idle = 0;
-					state_next = READY;
+					state_next = START;
 				end
-			end
-			READY: begin
-				ap_idle = 0;
-				state_next = START;
 			end
 			START: begin
 				ap_idle = 0;
 
 				tvalid = (count < size);
-				tlast = (count == size - 1);
 
 				if (tvalid && tready) begin
 					if(count == size - 1) begin
+						tlast = 1;
 						ap_done = 1;
 						state_next = IDLE;
 					end else begin
@@ -90,8 +82,8 @@ module data_gen
 		endcase
 	end
 
-	always_ff @(posedge clk or negedge reset_n) begin
-		if (!reset_n) begin
+	always_ff @(posedge ap_clk or negedge ap_rst_n) begin
+		if (!ap_rst_n) begin
 			ap_ready <= 0;
 			ap_done <= 0;
 			ap_idle <= 1;

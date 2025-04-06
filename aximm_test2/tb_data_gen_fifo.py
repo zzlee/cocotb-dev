@@ -19,9 +19,12 @@ async def testbench0(dut):
 
 	dut.size.value = 8;
 	dut.times.value = 2;
-	dut.ap_start.value = 1;
 
-	await RisingEdge(dut.ap_done);
+	# ap_start pulse
+	dut.ap_start.value = 1;
+	await ClockCycles(dut.ap_clk, 1);
 	dut.ap_start.value = 0;
 
-	await ClockCycles(dut.ap_clk, 40);
+	# await ClockCycles(dut.ap_clk, 40);
+	await RisingEdge(dut.ap_done);
+	await ClockCycles(dut.ap_clk, 20);

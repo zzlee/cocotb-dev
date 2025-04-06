@@ -10,13 +10,15 @@ MODULE = tb_data_gen
 endif
 
 ifeq (${TARGET},tb_data_gen_fifo)
-VERILOG_SOURCES = ./tb_data_gen_fifo.v ./data_gen.v ./fifo.v
+VERILOG_SOURCES = ./tb_data_gen_fifo.v \
+./data_gen.v ./fifo.v ./data_gen_fifo.v ./fifo_drain.v
 TOPLEVEL = tb_data_gen_fifo
 MODULE = tb_data_gen_fifo
 endif
 
 ifeq (${TARGET},tb_aximm_test2)
-VERILOG_SOURCES = ./tb_aximm_test2.v ./aximm_test2_control_s_axi.v ./data_gen.v ./fifo.v
+VERILOG_SOURCES = ./tb_aximm_test2.v ./aximm_test2_control_s_axi.v \
+./data_gen.v ./fifo.v ./data_gen_fifo.v ./fifo_drain.v
 TOPLEVEL = tb_aximm_test2
 MODULE = tb_aximm_test2
 endif

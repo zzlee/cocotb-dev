@@ -199,48 +199,15 @@ module tb_aximm_test2(
 		.ap_idle(ap_idle)
 	);
 
-	wire [C_M_AXI_MM_VIDEO_DATA_WIDTH-1:0] s_axis_tdata;
-	wire s_axis_tvalid;
-	wire s_axis_tlast;
-	reg [31:0] data_gen_size;
-	reg data_gen_ap_start, data_gen_ap_start_next;
-	wire data_gen_ap_done;
-	wire data_gen_ap_idle;
-	wire data_gen_ap_ready;
-	reg s_axis_tready, s_axis_tready_next;
-	reg [31:0] data_gen_times, data_gen_times_next;
-
-	assign data_gen_size = (nSize >> $clog2(C_M_AXI_MM_VIDEO_DATA_WIDTH / 8));
-
-	data_gen #(
-		.WIDTH(C_M_AXI_MM_VIDEO_DATA_WIDTH)
-	)
-	data_gen_U (
-		.clk(ap_clk),
-		.reset_n(ap_rst_n),
-
-		.size(data_gen_size),
-
-		.ap_start(data_gen_ap_start),
-		.ap_done(data_gen_ap_done),
-		.ap_idle(data_gen_ap_idle),
-		.ap_ready(data_gen_ap_ready),
-
-		.tdata(s_axis_tdata),
-		.tvalid(s_axis_tvalid),
-		.tlast(s_axis_tlast),
-		.tready(s_axis_tready)
-	);
-
 	reg fifo_wr_en;
-	reg [C_M_AXI_MM_VIDEO_DATA_WIDTH-1:0] fifo_wr_data, fifo_wr_data_next;
+	reg [C_M_AXI_MM_VIDEO_DATA_WIDTH-1:0] fifo_wr_data;
 	reg fifo_rd_en;
 	wire [C_M_AXI_MM_VIDEO_DATA_WIDTH-1:0] fifo_rd_data;
 	wire fifo_empty;
 	wire fifo_full;
 
 	fifo #(
-		.DEPTH(),
+		.DEPTH(4),
 		.WIDTH(C_M_AXI_MM_VIDEO_DATA_WIDTH)
 	)
 	fifo_U (
@@ -257,33 +224,76 @@ module tb_aximm_test2(
 		.full(fifo_full)
 	);
 
-	always @ (*) begin
-		ap_rst_n_inv = ~ap_rst_n;
-	end
+	reg [31:0] data_gen_size;
+	assign data_gen_size = (nSize >> $clog2(C_M_AXI_MM_VIDEO_DATA_WIDTH / 8));
 
+	reg data_gen_fifo_ap_start;
+	wire data_gen_fifo_ap_done;
+	wire data_gen_fifo_ap_idle;
+	wire data_gen_fifo_ap_ready;
+
+	data_gen_fifo #(
+		.WIDTH(C_M_AXI_MM_VIDEO_DATA_WIDTH)
+	)
+	data_gen_fifo_U (
+		.ap_clk(ap_clk),
+		.ap_rst_n(ap_rst_n),
+
+		.size(data_gen_size),
+		.times(nTimes),
+
+		.fifo_wr_en(fifo_wr_en),
+		.fifo_wr_data(fifo_wr_data),
+		.fifo_full(fifo_full),
+
+		.ap_start(data_gen_fifo_ap_start),
+		.ap_done(data_gen_fifo_ap_done),
+		.ap_idle(data_gen_fifo_ap_idle),
+		.ap_ready(data_gen_fifo_ap_ready)
+	);
+
+	reg fifo_drain_ap_start;
+	wire fifo_drain_ap_done;
+	wire fifo_drain_ap_idle;
+	wire fifo_drain_ap_ready;
+
+	fifo_drain #(
+		.WIDTH(C_M_AXI_MM_VIDEO_DATA_WIDTH)
+	)
+	fifo_drain_U (
+		.ap_clk(ap_clk),
+		.ap_rst_n(ap_rst_n),
+
+		.size(data_gen_size),
+		.times(nTimes),
+
+		.fifo_rd_en(fifo_rd_en),
+		.fifo_rd_data(fifo_rd_data),
+		.fifo_empty(fifo_empty),
+
+		.ap_start(fifo_drain_ap_start),
+		.ap_done(fifo_drain_ap_done),
+		.ap_idle(fifo_drain_ap_idle),
+		.ap_ready(fifo_drain_ap_ready)
+	);
+
+	// ap control
 	localparam
-		C_STATE_BITS = 2,
-		C_MAX_AWLEN = 'd255,
-		C_M_AXI_MM_VIDEO_DATA_BYTES = C_M_AXI_MM_VIDEO_DATA_WIDTH >> 3;
+		IDLE = 'b000,
+		READY = 'b001,
+		START = 'b010,
+		DONE_0 = 'b011,
+		DONE_1 = 'b100;
 
-	localparam
-		IDLE = 0,
-		READY = 1,
-		START = 2,
-		DONE = 3;
-
-	reg [C_STATE_BITS-1:0] state, state_next;
+	reg [2:0] state, state_next;
 
 	always_comb begin
 		state_next = state;
-		s_axis_tready_next = s_axis_tready;
-		data_gen_ap_start_next = data_gen_ap_start;
-		data_gen_times_next = data_gen_times;
-		fifo_wr_en = 0;
-		fifo_wr_data = 0;
 		ap_ready = 0;
 		ap_done = 0;
 		ap_idle = 1;
+		data_gen_fifo_ap_start = 0;
+		fifo_drain_ap_start = 0;
 
 		case(state)
 			IDLE: begin
@@ -295,40 +305,38 @@ module tb_aximm_test2(
 			end
 			READY: begin
 				ap_idle = 0;
-				data_gen_ap_start_next = 1;
-				data_gen_times_next = 0;
-				s_axis_tready_next = 1;
+				data_gen_fifo_ap_start = 1;
+				fifo_drain_ap_start = 1;
 				state_next = START;
 			end
 			START: begin
 				ap_idle = 0;
-				data_gen_ap_start_next = 0;
-				s_axis_tready_next = !fifo_full;
 
-				if (s_axis_tvalid && s_axis_tready) begin
-					fifo_wr_en = 1;
-					fifo_wr_data = s_axis_tdata;
-					$display(">>>> %0d", fifo_wr_data);
+				if(data_gen_fifo_ap_done && fifo_drain_ap_done) begin
+					ap_done = 1;
+					state_next = IDLE;
+				end else begin
+					if(data_gen_fifo_ap_done)
+						state_next = DONE_0;
+					if(fifo_drain_ap_done)
+						state_next = DONE_1;
 				end
+			end
+			DONE_0: begin
+				ap_idle = 0;
 
-				if(data_gen_ap_done) begin
-					s_axis_tready_next = 0;
-					data_gen_ap_start_next = 0;
-					state_next = DONE;
-				end
-
-				if(data_gen_times == nTimes) begin
-					s_axis_tready_next = 0;
+				if(fifo_drain_ap_done) begin
 					ap_done = 1;
 					state_next = IDLE;
 				end
 			end
-			DONE: begin
+			DONE_1: begin
 				ap_idle = 0;
-				data_gen_ap_start_next = 1;
-				data_gen_times_next = data_gen_times + 1;
-				s_axis_tready_next = 1;
-				state_next = START;
+
+				if(fifo_drain_ap_done) begin
+					ap_done = 1;
+					state_next = IDLE;
+				end
 			end
 		endcase
 	end
@@ -338,55 +346,11 @@ module tb_aximm_test2(
 			ap_ready <= 0;
 			ap_done <= 0;
 			ap_idle <= 1;
-
-			data_gen_times <= 0;
-			data_gen_ap_start <= 0;
-			s_axis_tready <= 0;
-			fifo_wr_en <= 0;
-			fifo_rd_en <= 0;
+			data_gen_fifo_ap_start <= 0;
+			fifo_drain_ap_start <= 0;
 			state <= IDLE;
 		end else begin
-			data_gen_times <= data_gen_times_next;
-			data_gen_ap_start <= data_gen_ap_start_next;
-			s_axis_tready <= s_axis_tready_next;
 			state <= state_next;
-		end
-	end
-
-	reg [1:0] fifo_drain_state;
-
-	localparam
-		FIFO_READY = 0,
-		FIFO_READ_0 = 1,
-		FIFO_READ = 2;
-
-	// fifo -> drain
-	always @(posedge ap_clk or negedge ap_rst_n) begin
-		if(! ap_rst_n) begin
-			fifo_rd_en <= 0;
-			fifo_drain_state <= FIFO_READY;
-		end else begin
-			case(fifo_drain_state)
-				FIFO_READY: begin
-					if(! fifo_empty) begin
-						fifo_rd_en <= 1;
-						fifo_drain_state <= FIFO_READ_0;
-					end
-				end
-				FIFO_READ_0: begin
-					$display("???? %0d", fifo_rd_data);
-
-					fifo_drain_state <= FIFO_READ;
-				end
-				FIFO_READ: begin
-					$display("---- %0d", fifo_rd_data);
-
-					if(fifo_empty) begin
-						fifo_rd_en <= 0;
-						fifo_drain_state <= FIFO_READY;
-					end
-				end
-			endcase
 		end
 	end
 

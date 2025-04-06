@@ -43,5 +43,6 @@ async def testbench0(dut):
 	ap_ctrl = int.from_bytes(ap_ctrl_val.data, byteorder) | 0x1;
 	await axil_master.write(0x00, ap_ctrl.to_bytes(4, byteorder));
 
+	# await ClockCycles(dut.ap_clk, 40);
 	await RisingEdge(dut.interrupt);
 	await ClockCycles(dut.ap_clk, 20);
