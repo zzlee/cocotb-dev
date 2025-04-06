@@ -68,13 +68,14 @@ module data_gen_fifo
 		fifo_wr_data = 0;
 		ap_ready = 0;
 		ap_done = 0;
-		ap_idle = 1;
+		ap_idle = 0;
 
 		case(state)
 			IDLE: begin
+				ap_idle = 1;
+
 				if(ap_start) begin
 					ap_ready = 1;
-					ap_idle = 0;
 					data_gen_ap_start_next = 1;
 					data_gen_times_next = 1;
 					s_axis_tready_next = 1;
@@ -82,7 +83,6 @@ module data_gen_fifo
 				end
 			end
 			WRITE: begin
-				ap_idle = 0;
 				s_axis_tready_next = !fifo_full;
 
 				if (s_axis_tvalid && s_axis_tready) begin
@@ -104,14 +104,12 @@ module data_gen_fifo
 				end
 			end
 			NEXT: begin
-				ap_idle = 0;
 				data_gen_ap_start_next = 1;
 				data_gen_times_next = data_gen_times + 1;
 				s_axis_tready_next = 1;
 				state_next = WRITE;
 			end
 			DONE: begin
-				ap_idle = 0;
 				ap_done = 1;
 				state_next = IDLE;
 			end

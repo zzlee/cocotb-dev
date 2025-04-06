@@ -23,9 +23,8 @@ module fifo_drain # (
 	// ap control
 	localparam
 		IDLE = 'b000,
-		READY = 'b001,
-		START = 'b010,
-		NEXT = 'b011;
+		START = 'b001,
+		NEXT = 'b010;
 
 	reg [2:0] state, state_next;
 	reg [31:0] size_count, size_count_next;
@@ -35,35 +34,29 @@ module fifo_drain # (
 		state_next = state;
 		ap_ready = 0;
 		ap_done = 0;
-		ap_idle = 1;
+		ap_idle = 0;
 		fifo_rd_en = 0;
 		size_count_next = size_count;
 		times_count_next = times_count;
 
 		case(state)
 			IDLE: begin
+				ap_idle = 1;
+
 				if(ap_start) begin
 					ap_ready = 1;
-					ap_idle = 0;
-					state_next = READY;
-				end
-			end
-			READY: begin
-				ap_idle = 0;
-				size_count_next = 1;
-				times_count_next = 1;
+					size_count_next = 1;
+					times_count_next = 1;
 
-				if(fifo_empty) begin
-					state_next = NEXT;
-				end else begin
-					fifo_rd_en = 1;
-					state_next = START;
+					if(fifo_empty) begin
+						state_next = NEXT;
+					end else begin
+						fifo_rd_en = 1;
+						state_next = START;
+					end
 				end
-
 			end
 			START: begin
-				ap_idle = 0;
-
 				if(size_count == size) begin
 					if(times_count == times) begin
 						ap_done = 1;
@@ -89,8 +82,6 @@ module fifo_drain # (
 				end
 			end
 			NEXT: begin
-				ap_idle = 0;
-
 				if(! fifo_empty) begin
 					fifo_rd_en = 1;
 					state_next = START;

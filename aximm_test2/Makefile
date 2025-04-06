@@ -18,7 +18,7 @@ endif
 
 ifeq (${TARGET},tb_aximm_test2)
 VERILOG_SOURCES = ./tb_aximm_test2.v ./aximm_test2_control_s_axi.v \
-./data_gen.v ./fifo.v ./data_gen_fifo.v ./fifo_drain.v
+./data_gen.v ./fifo.v ./data_gen_fifo.v ./fifo_drain.v ./fifo_to_axi_mm_burst.v
 TOPLEVEL = tb_aximm_test2
 MODULE = tb_aximm_test2
 endif

@@ -118,14 +118,14 @@ module tb_aximm_test2(
 	output reg [1:0] m_axi_mm_video_AWBURST;
 	// output  [1:0] m_axi_mm_video_AWLOCK;
 	// output  [3:0] m_axi_mm_video_AWCACHE;
-	// output  [2:0] m_axi_mm_video_AWPROT;
+	output  [2:0] m_axi_mm_video_AWPROT;
 	// output  [3:0] m_axi_mm_video_AWQOS;
 	// output  [3:0] m_axi_mm_video_AWREGION;
 	// output  [C_M_AXI_MM_VIDEO_AWUSER_WIDTH - 1:0] m_axi_mm_video_AWUSER;
 	output reg  m_axi_mm_video_WVALID;
 	input  reg m_axi_mm_video_WREADY;
 	output reg [C_M_AXI_MM_VIDEO_DATA_WIDTH - 1:0] m_axi_mm_video_WDATA;
-	// output  [C_M_AXI_MM_VIDEO_WSTRB_WIDTH - 1:0] m_axi_mm_video_WSTRB;
+	output  [C_M_AXI_MM_VIDEO_WSTRB_WIDTH - 1:0] m_axi_mm_video_WSTRB;
 	output reg  m_axi_mm_video_WLAST;
 	output reg [C_M_AXI_MM_VIDEO_ID_WIDTH - 1:0] m_axi_mm_video_WID;
 	// output  [C_M_AXI_MM_VIDEO_WUSER_WIDTH - 1:0] m_axi_mm_video_WUSER;

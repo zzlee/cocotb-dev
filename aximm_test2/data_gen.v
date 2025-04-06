@@ -46,7 +46,7 @@ module data_gen
 		data_seed_next = data_seed;
 		ap_ready = 0;
 		ap_done = 0;
-		ap_idle = 1;
+		ap_idle = 0;
 		tvalid = 0;
 		tlast = 0;
 
@@ -54,18 +54,17 @@ module data_gen
 
 		case(state)
 			IDLE: begin
+				ap_idle = 1;
+
 				if(ap_start) begin
 					count_next = 0;
 					data_seed_next = 'h80;
 
 					ap_ready = 1;
-					ap_idle = 0;
 					state_next = START;
 				end
 			end
 			START: begin
-				ap_idle = 0;
-
 				tvalid = (count < size);
 
 				if (tvalid && tready) begin
