@@ -50,8 +50,6 @@ module data_gen
 		tvalid = 0;
 		tlast = 0;
 
-		// $display("state=%0d, count=%0d, size=%0d", state, count, size);
-
 		case(state)
 			IDLE: begin
 				ap_idle = 1;
@@ -68,15 +66,18 @@ module data_gen
 				tvalid = (count < size);
 
 				if (tvalid && tready) begin
-					if(count == size - 1) begin
-						tlast = 1;
-						ap_done = 1;
-						state_next = IDLE;
-					end else begin
-						count_next = count + 1;
-						data_seed_next = data_seed + WIDTH / 8;
-					end
+					count_next = count + 1;
+					data_seed_next = data_seed + WIDTH / 8;
 				end
+
+				if(count == size - 1) begin
+					tlast = 1;
+					state_next = DONE;
+				end
+			end
+			DONE: begin
+				ap_done = 1;
+				state_next = IDLE;
 			end
 		endcase
 	end

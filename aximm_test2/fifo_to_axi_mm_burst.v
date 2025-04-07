@@ -21,36 +21,36 @@ module fifo_to_axi_mm_burst #(
     input wire [AXI_ADDR_WIDTH-1:0] BASE_ADDR,    // 目標內存起始地址
     input wire [LEN_WIDTH-1:0]      TRANSFER_LEN, // 要傳輸的總數據字數 (word count)
     input wire                      START,        // 啟動傳輸信號 (pulse or level)
-    output wire                     BUSY,         // 模塊忙碌狀態
-    output wire                     DONE,         // 傳輸完成信號 (pulse)
-    // output wire ERROR,      // 可選：錯誤狀態 (e.g., from BRESP)
+    output reg                     BUSY,         // 模塊忙碌狀態
+    output reg                     DONE,         // 傳輸完成信號 (pulse)
+    // output reg ERROR,      // 可選：錯誤狀態 (e.g., from BRESP)
 
     // FIFO Read Interface (Input)
     input  wire [FIFO_DATA_WIDTH-1:0] fifo_rdata,   // 從 FIFO 讀取的數據
     input  wire                       fifo_empty,   // FIFO 空狀態信號
-    output wire                       fifo_rden,    // FIFO 讀取啟用信號 (to FIFO)
+    output reg                       fifo_rden,    // FIFO 讀取啟用信號 (to FIFO)
 
     // AXI Master Interface (Output to Memory)
     // Write Address Channel
-    output wire [AXI_ADDR_WIDTH-1:0]  m_axi_awaddr,
-    output wire [2:0]                 m_axi_awprot,
-    output wire                       m_axi_awvalid,
+    output reg [AXI_ADDR_WIDTH-1:0]  m_axi_awaddr,
+    output reg [2:0]                 m_axi_awprot,
+    output reg                       m_axi_awvalid,
     input  wire                       m_axi_awready,
-    output wire [7:0]                 m_axi_awlen,   // Actual burst length - 1 for this burst
-    output wire [2:0]                 m_axi_awsize,  // Based on AXI_DATA_WIDTH
-    output wire [1:0]                 m_axi_awburst, // INCR burst
+    output reg [7:0]                 m_axi_awlen,   // Actual burst length - 1 for this burst
+    output reg [2:0]                 m_axi_awsize,  // Based on AXI_DATA_WIDTH
+    output reg [1:0]                 m_axi_awburst, // INCR burst
 
     // Write Data Channel
-    output wire [AXI_DATA_WIDTH-1:0]  m_axi_wdata,
-    output wire [AXI_DATA_WIDTH/8-1:0] m_axi_wstrb,   // Assume full strobe
-    output wire                       m_axi_wlast,
-    output wire                       m_axi_wvalid,
+    output reg [AXI_DATA_WIDTH-1:0]  m_axi_wdata,
+    output reg [AXI_DATA_WIDTH/8-1:0] m_axi_wstrb,   // Assume full strobe
+    output reg                       m_axi_wlast,
+    output reg                       m_axi_wvalid,
     input  wire                       m_axi_wready,
 
     // Write Response Channel
     input  wire [1:0]                 m_axi_bresp,
     input  wire                       m_axi_bvalid,
-    output wire                       m_axi_bready
+    output reg                       m_axi_bready
 );
 
     // --- Parameter Checks ---

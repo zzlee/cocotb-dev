@@ -94,60 +94,38 @@ module tb_data_gen_fifo # (
 	// ap control
 	localparam
 		IDLE = 'b000,
-		READY = 'b001,
-		START = 'b010,
-		DONE_0 = 'b011,
-		DONE_1 = 'b100;
+		START = 'b001;
 
 	reg [2:0] state, state_next;
+	reg data_gen_fifo_ap_done_int;
+	reg fifo_drain_ap_done_int;
 
 	always_comb begin
 		state_next = state;
 		ap_ready = 0;
 		ap_done = 0;
-		ap_idle = 1;
+		ap_idle = 0;
 		data_gen_fifo_ap_start = 0;
 		fifo_drain_ap_start = 0;
+		data_gen_fifo_ap_done_int = data_gen_fifo_ap_done_int;
+		fifo_drain_ap_done_int = fifo_drain_ap_done_int;
 
 		case(state)
 			IDLE: begin
+				ap_idle = 1;
+
 				if(ap_start) begin
 					ap_ready = 1;
-					ap_idle = 0;
-					state_next = READY;
+					data_gen_fifo_ap_start = 1;
+					fifo_drain_ap_start = 1;
+					state_next = START;
 				end
-			end
-			READY: begin
-				ap_idle = 0;
-				data_gen_fifo_ap_start = 1;
-				fifo_drain_ap_start = 1;
-				state_next = START;
 			end
 			START: begin
-				ap_idle = 0;
+				data_gen_fifo_ap_done_int = data_gen_fifo_ap_done_int || data_gen_fifo_ap_done;
+				fifo_drain_ap_done_int = fifo_drain_ap_done_int || fifo_drain_ap_done;
 
-				if(data_gen_fifo_ap_done && fifo_drain_ap_done) begin
-					ap_done = 1;
-					state_next = IDLE;
-				end else begin
-					if(data_gen_fifo_ap_done)
-						state_next = DONE_0;
-					if(fifo_drain_ap_done)
-						state_next = DONE_1;
-				end
-			end
-			DONE_0: begin
-				ap_idle = 0;
-
-				if(fifo_drain_ap_done) begin
-					ap_done = 1;
-					state_next = IDLE;
-				end
-			end
-			DONE_1: begin
-				ap_idle = 0;
-
-				if(fifo_drain_ap_done) begin
+				if(data_gen_fifo_ap_done_int && fifo_drain_ap_done_int) begin
 					ap_done = 1;
 					state_next = IDLE;
 				end
@@ -162,6 +140,8 @@ module tb_data_gen_fifo # (
 			ap_idle <= 1;
 			data_gen_fifo_ap_start <= 0;
 			fifo_drain_ap_start <= 0;
+			data_gen_fifo_ap_done_int <= 0;
+			fifo_drain_ap_done_int <= 0;
 			state <= IDLE;
 		end else begin
 			state <= state_next;

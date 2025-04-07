@@ -13,18 +13,17 @@ async def testbench0(dut):
 	cocotb.start_soon(clock.start(start_high=False))
 
 	dut.ap_rst_n.value = 0;
-	await ClockCycles(dut.ap_clk, 5);
+	await ClockCycles(dut.ap_clk, 3);
 	dut.ap_rst_n.value = 1;
+	await ClockCycles(dut.ap_clk, 3);
+
+	axis_sink = AxiStreamSink(AxiStreamBus.from_prefix(dut, "m_axis"), dut.ap_clk, dut.ap_rst_n, reset_active_level=False)
+
+	dut.i_n_value.value = 32;
+	dut.i_enable.value = 1;
 	await ClockCycles(dut.ap_clk, 1);
+	dut.i_enable.value = 0;
+	data = await axis_sink.recv();
+	print(data);
 
-	dut.size.value = 8;
-	dut.times.value = 3;
-
-	# ap_start pulse
-	dut.ap_start.value = 1;
-	await ClockCycles(dut.ap_clk, 1);
-	dut.ap_start.value = 0;
-
-	await ClockCycles(dut.ap_clk, 40);
-	# await RisingEdge(dut.ap_done);
 	await ClockCycles(dut.ap_clk, 20);
