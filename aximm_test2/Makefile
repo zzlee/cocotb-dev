@@ -31,7 +31,7 @@ endif
 
 ifeq (${TARGET},tb_axis_to_axi_mm_burst)
 VERILOG_SOURCES = ./tb_axis_to_axi_mm_burst.v ./aximm_test2_control_s_axi.v \
-./axis_number_generator.v ./axis_to_axi_mm_burst.v
+./axis_number_generator.v ./axis_to_axi_mm_burst.v ./axis_fifo.sv
 TOPLEVEL = tb_axis_to_axi_mm_burst
 MODULE = tb_axis_to_axi_mm_burst
 endif

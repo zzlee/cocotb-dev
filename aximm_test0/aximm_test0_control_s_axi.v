@@ -8,7 +8,7 @@
 `timescale 1ns/1ps
 module aximm_test0_control_s_axi
 #(parameter
-    C_S_AXI_ADDR_WIDTH = 7,
+    C_S_AXI_ADDR_WIDTH = 6,
     C_S_AXI_DATA_WIDTH = 32
 )(
     input  wire                          ACLK,
@@ -32,15 +32,9 @@ module aximm_test0_control_s_axi
     output wire                          RVALID,
     input  wire                          RREADY,
     output wire                          interrupt,
-    output wire [63:0]                   pDstY0,
-    output wire [63:0]                   pDstUV0,
-    output wire [63:0]                   pDstY1,
-    output wire [63:0]                   pDstUV1,
-    output wire [31:0]                   nDstStrideY,
-    output wire [31:0]                   nDstStrideUV,
-    output wire [31:0]                   nWidth,
-    output wire [31:0]                   nHeight,
-    output wire [31:0]                   nControl,
+    output wire [63:0]                   pDstPxl,
+    output wire [31:0]                   nSize,
+    output wire [31:0]                   nTimes,
     output wire                          ap_start,
     input  wire                          ap_done,
     input  wire                          ap_ready,
@@ -68,79 +62,40 @@ module aximm_test0_control_s_axi
 //        bit 0 - ap_done (Read/TOW)
 //        bit 1 - ap_ready (Read/TOW)
 //        others - reserved
-// 0x10 : Data signal of pDstY0
-//        bit 31~0 - pDstY0[31:0] (Read/Write)
-// 0x14 : Data signal of pDstY0
-//        bit 31~0 - pDstY0[63:32] (Read/Write)
+// 0x10 : Data signal of pDstPxl
+//        bit 31~0 - pDstPxl[31:0] (Read/Write)
+// 0x14 : Data signal of pDstPxl
+//        bit 31~0 - pDstPxl[63:32] (Read/Write)
 // 0x18 : reserved
-// 0x1c : Data signal of pDstUV0
-//        bit 31~0 - pDstUV0[31:0] (Read/Write)
-// 0x20 : Data signal of pDstUV0
-//        bit 31~0 - pDstUV0[63:32] (Read/Write)
-// 0x24 : reserved
-// 0x28 : Data signal of pDstY1
-//        bit 31~0 - pDstY1[31:0] (Read/Write)
-// 0x2c : Data signal of pDstY1
-//        bit 31~0 - pDstY1[63:32] (Read/Write)
-// 0x30 : reserved
-// 0x34 : Data signal of pDstUV1
-//        bit 31~0 - pDstUV1[31:0] (Read/Write)
-// 0x38 : Data signal of pDstUV1
-//        bit 31~0 - pDstUV1[63:32] (Read/Write)
-// 0x3c : reserved
-// 0x40 : Data signal of nDstStrideY
-//        bit 31~0 - nDstStrideY[31:0] (Read/Write)
-// 0x44 : reserved
-// 0x48 : Data signal of nDstStrideUV
-//        bit 31~0 - nDstStrideUV[31:0] (Read/Write)
-// 0x4c : reserved
-// 0x50 : Data signal of nWidth
-//        bit 31~0 - nWidth[31:0] (Read/Write)
-// 0x54 : reserved
-// 0x58 : Data signal of nHeight
-//        bit 31~0 - nHeight[31:0] (Read/Write)
-// 0x5c : reserved
-// 0x60 : Data signal of nControl
-//        bit 31~0 - nControl[31:0] (Read/Write)
-// 0x64 : reserved
+// 0x1c : Data signal of nSize
+//        bit 31~0 - nSize[31:0] (Read/Write)
+// 0x20 : reserved
+// 0x24 : Data signal of nTimes
+//        bit 31~0 - nTimes[31:0] (Read/Write)
+// 0x28 : reserved
 // (SC = Self Clear, COR = Clear on Read, TOW = Toggle on Write, COH = Clear on Handshake)
 
 //------------------------Parameter----------------------
 localparam
-    ADDR_AP_CTRL             = 7'h00,
-    ADDR_GIE                 = 7'h04,
-    ADDR_IER                 = 7'h08,
-    ADDR_ISR                 = 7'h0c,
-    ADDR_PDSTY0_DATA_0       = 7'h10,
-    ADDR_PDSTY0_DATA_1       = 7'h14,
-    ADDR_PDSTY0_CTRL         = 7'h18,
-    ADDR_PDSTUV0_DATA_0      = 7'h1c,
-    ADDR_PDSTUV0_DATA_1      = 7'h20,
-    ADDR_PDSTUV0_CTRL        = 7'h24,
-    ADDR_PDSTY1_DATA_0       = 7'h28,
-    ADDR_PDSTY1_DATA_1       = 7'h2c,
-    ADDR_PDSTY1_CTRL         = 7'h30,
-    ADDR_PDSTUV1_DATA_0      = 7'h34,
-    ADDR_PDSTUV1_DATA_1      = 7'h38,
-    ADDR_PDSTUV1_CTRL        = 7'h3c,
-    ADDR_NDSTSTRIDEY_DATA_0  = 7'h40,
-    ADDR_NDSTSTRIDEY_CTRL    = 7'h44,
-    ADDR_NDSTSTRIDEUV_DATA_0 = 7'h48,
-    ADDR_NDSTSTRIDEUV_CTRL   = 7'h4c,
-    ADDR_NWIDTH_DATA_0       = 7'h50,
-    ADDR_NWIDTH_CTRL         = 7'h54,
-    ADDR_NHEIGHT_DATA_0      = 7'h58,
-    ADDR_NHEIGHT_CTRL        = 7'h5c,
-    ADDR_NCONTROL_DATA_0     = 7'h60,
-    ADDR_NCONTROL_CTRL       = 7'h64,
-    WRIDLE                   = 2'd0,
-    WRDATA                   = 2'd1,
-    WRRESP                   = 2'd2,
-    WRRESET                  = 2'd3,
-    RDIDLE                   = 2'd0,
-    RDDATA                   = 2'd1,
-    RDRESET                  = 2'd2,
-    ADDR_BITS                = 7;
+    ADDR_AP_CTRL        = 6'h00,
+    ADDR_GIE            = 6'h04,
+    ADDR_IER            = 6'h08,
+    ADDR_ISR            = 6'h0c,
+    ADDR_PDSTPXL_DATA_0 = 6'h10,
+    ADDR_PDSTPXL_DATA_1 = 6'h14,
+    ADDR_PDSTPXL_CTRL   = 6'h18,
+    ADDR_NSIZE_DATA_0   = 6'h1c,
+    ADDR_NSIZE_CTRL     = 6'h20,
+    ADDR_NTIMES_DATA_0  = 6'h24,
+    ADDR_NTIMES_CTRL    = 6'h28,
+    WRIDLE              = 2'd0,
+    WRDATA              = 2'd1,
+    WRRESP              = 2'd2,
+    WRRESET             = 2'd3,
+    RDIDLE              = 2'd0,
+    RDDATA              = 2'd1,
+    RDRESET             = 2'd2,
+    ADDR_BITS                = 6;
 
 //------------------------Local signal-------------------
     reg  [1:0]                    wstate = WRRESET;
@@ -169,15 +124,9 @@ localparam
     reg                           int_gie = 1'b0;
     reg  [1:0]                    int_ier = 2'b0;
     reg  [1:0]                    int_isr = 2'b0;
-    reg  [63:0]                   int_pDstY0 = 'b0;
-    reg  [63:0]                   int_pDstUV0 = 'b0;
-    reg  [63:0]                   int_pDstY1 = 'b0;
-    reg  [63:0]                   int_pDstUV1 = 'b0;
-    reg  [31:0]                   int_nDstStrideY = 'b0;
-    reg  [31:0]                   int_nDstStrideUV = 'b0;
-    reg  [31:0]                   int_nWidth = 'b0;
-    reg  [31:0]                   int_nHeight = 'b0;
-    reg  [31:0]                   int_nControl = 'b0;
+    reg  [63:0]                   int_pDstPxl = 'b0;
+    reg  [31:0]                   int_nSize = 'b0;
+    reg  [31:0]                   int_nTimes = 'b0;
 
 //------------------------Instantiation------------------
 
@@ -287,44 +236,17 @@ always @(posedge ACLK) begin
                 ADDR_ISR: begin
                     rdata <= int_isr;
                 end
-                ADDR_PDSTY0_DATA_0: begin
-                    rdata <= int_pDstY0[31:0];
+                ADDR_PDSTPXL_DATA_0: begin
+                    rdata <= int_pDstPxl[31:0];
                 end
-                ADDR_PDSTY0_DATA_1: begin
-                    rdata <= int_pDstY0[63:32];
+                ADDR_PDSTPXL_DATA_1: begin
+                    rdata <= int_pDstPxl[63:32];
                 end
-                ADDR_PDSTUV0_DATA_0: begin
-                    rdata <= int_pDstUV0[31:0];
+                ADDR_NSIZE_DATA_0: begin
+                    rdata <= int_nSize[31:0];
                 end
-                ADDR_PDSTUV0_DATA_1: begin
-                    rdata <= int_pDstUV0[63:32];
-                end
-                ADDR_PDSTY1_DATA_0: begin
-                    rdata <= int_pDstY1[31:0];
-                end
-                ADDR_PDSTY1_DATA_1: begin
-                    rdata <= int_pDstY1[63:32];
-                end
-                ADDR_PDSTUV1_DATA_0: begin
-                    rdata <= int_pDstUV1[31:0];
-                end
-                ADDR_PDSTUV1_DATA_1: begin
-                    rdata <= int_pDstUV1[63:32];
-                end
-                ADDR_NDSTSTRIDEY_DATA_0: begin
-                    rdata <= int_nDstStrideY[31:0];
-                end
-                ADDR_NDSTSTRIDEUV_DATA_0: begin
-                    rdata <= int_nDstStrideUV[31:0];
-                end
-                ADDR_NWIDTH_DATA_0: begin
-                    rdata <= int_nWidth[31:0];
-                end
-                ADDR_NHEIGHT_DATA_0: begin
-                    rdata <= int_nHeight[31:0];
-                end
-                ADDR_NCONTROL_DATA_0: begin
-                    rdata <= int_nControl[31:0];
+                ADDR_NTIMES_DATA_0: begin
+                    rdata <= int_nTimes[31:0];
                 end
             endcase
         end
@@ -338,15 +260,9 @@ assign ap_start          = int_ap_start;
 assign task_ap_done      = (ap_done && !auto_restart_status) || auto_restart_done;
 assign task_ap_ready     = ap_ready && !int_auto_restart;
 assign auto_restart_done = auto_restart_status && (ap_idle && !int_ap_idle);
-assign pDstY0            = int_pDstY0;
-assign pDstUV0           = int_pDstUV0;
-assign pDstY1            = int_pDstY1;
-assign pDstUV1           = int_pDstUV1;
-assign nDstStrideY       = int_nDstStrideY;
-assign nDstStrideUV      = int_nDstStrideUV;
-assign nWidth            = int_nWidth;
-assign nHeight           = int_nHeight;
-assign nControl          = int_nControl;
+assign pDstPxl           = int_pDstPxl;
+assign nSize             = int_nSize;
+assign nTimes            = int_nTimes;
 // int_interrupt
 always @(posedge ACLK) begin
     if (ARESET)
@@ -479,133 +395,43 @@ always @(posedge ACLK) begin
     end
 end
 
-// int_pDstY0[31:0]
+// int_pDstPxl[31:0]
 always @(posedge ACLK) begin
     if (ARESET)
-        int_pDstY0[31:0] <= 0;
+        int_pDstPxl[31:0] <= 0;
     else if (ACLK_EN) begin
-        if (w_hs && waddr == ADDR_PDSTY0_DATA_0)
-            int_pDstY0[31:0] <= (WDATA[31:0] & wmask) | (int_pDstY0[31:0] & ~wmask);
+        if (w_hs && waddr == ADDR_PDSTPXL_DATA_0)
+            int_pDstPxl[31:0] <= (WDATA[31:0] & wmask) | (int_pDstPxl[31:0] & ~wmask);
     end
 end
 
-// int_pDstY0[63:32]
+// int_pDstPxl[63:32]
 always @(posedge ACLK) begin
     if (ARESET)
-        int_pDstY0[63:32] <= 0;
+        int_pDstPxl[63:32] <= 0;
     else if (ACLK_EN) begin
-        if (w_hs && waddr == ADDR_PDSTY0_DATA_1)
-            int_pDstY0[63:32] <= (WDATA[31:0] & wmask) | (int_pDstY0[63:32] & ~wmask);
+        if (w_hs && waddr == ADDR_PDSTPXL_DATA_1)
+            int_pDstPxl[63:32] <= (WDATA[31:0] & wmask) | (int_pDstPxl[63:32] & ~wmask);
     end
 end
 
-// int_pDstUV0[31:0]
+// int_nSize[31:0]
 always @(posedge ACLK) begin
     if (ARESET)
-        int_pDstUV0[31:0] <= 0;
+        int_nSize[31:0] <= 0;
     else if (ACLK_EN) begin
-        if (w_hs && waddr == ADDR_PDSTUV0_DATA_0)
-            int_pDstUV0[31:0] <= (WDATA[31:0] & wmask) | (int_pDstUV0[31:0] & ~wmask);
+        if (w_hs && waddr == ADDR_NSIZE_DATA_0)
+            int_nSize[31:0] <= (WDATA[31:0] & wmask) | (int_nSize[31:0] & ~wmask);
     end
 end
 
-// int_pDstUV0[63:32]
+// int_nTimes[31:0]
 always @(posedge ACLK) begin
     if (ARESET)
-        int_pDstUV0[63:32] <= 0;
+        int_nTimes[31:0] <= 0;
     else if (ACLK_EN) begin
-        if (w_hs && waddr == ADDR_PDSTUV0_DATA_1)
-            int_pDstUV0[63:32] <= (WDATA[31:0] & wmask) | (int_pDstUV0[63:32] & ~wmask);
-    end
-end
-
-// int_pDstY1[31:0]
-always @(posedge ACLK) begin
-    if (ARESET)
-        int_pDstY1[31:0] <= 0;
-    else if (ACLK_EN) begin
-        if (w_hs && waddr == ADDR_PDSTY1_DATA_0)
-            int_pDstY1[31:0] <= (WDATA[31:0] & wmask) | (int_pDstY1[31:0] & ~wmask);
-    end
-end
-
-// int_pDstY1[63:32]
-always @(posedge ACLK) begin
-    if (ARESET)
-        int_pDstY1[63:32] <= 0;
-    else if (ACLK_EN) begin
-        if (w_hs && waddr == ADDR_PDSTY1_DATA_1)
-            int_pDstY1[63:32] <= (WDATA[31:0] & wmask) | (int_pDstY1[63:32] & ~wmask);
-    end
-end
-
-// int_pDstUV1[31:0]
-always @(posedge ACLK) begin
-    if (ARESET)
-        int_pDstUV1[31:0] <= 0;
-    else if (ACLK_EN) begin
-        if (w_hs && waddr == ADDR_PDSTUV1_DATA_0)
-            int_pDstUV1[31:0] <= (WDATA[31:0] & wmask) | (int_pDstUV1[31:0] & ~wmask);
-    end
-end
-
-// int_pDstUV1[63:32]
-always @(posedge ACLK) begin
-    if (ARESET)
-        int_pDstUV1[63:32] <= 0;
-    else if (ACLK_EN) begin
-        if (w_hs && waddr == ADDR_PDSTUV1_DATA_1)
-            int_pDstUV1[63:32] <= (WDATA[31:0] & wmask) | (int_pDstUV1[63:32] & ~wmask);
-    end
-end
-
-// int_nDstStrideY[31:0]
-always @(posedge ACLK) begin
-    if (ARESET)
-        int_nDstStrideY[31:0] <= 0;
-    else if (ACLK_EN) begin
-        if (w_hs && waddr == ADDR_NDSTSTRIDEY_DATA_0)
-            int_nDstStrideY[31:0] <= (WDATA[31:0] & wmask) | (int_nDstStrideY[31:0] & ~wmask);
-    end
-end
-
-// int_nDstStrideUV[31:0]
-always @(posedge ACLK) begin
-    if (ARESET)
-        int_nDstStrideUV[31:0] <= 0;
-    else if (ACLK_EN) begin
-        if (w_hs && waddr == ADDR_NDSTSTRIDEUV_DATA_0)
-            int_nDstStrideUV[31:0] <= (WDATA[31:0] & wmask) | (int_nDstStrideUV[31:0] & ~wmask);
-    end
-end
-
-// int_nWidth[31:0]
-always @(posedge ACLK) begin
-    if (ARESET)
-        int_nWidth[31:0] <= 0;
-    else if (ACLK_EN) begin
-        if (w_hs && waddr == ADDR_NWIDTH_DATA_0)
-            int_nWidth[31:0] <= (WDATA[31:0] & wmask) | (int_nWidth[31:0] & ~wmask);
-    end
-end
-
-// int_nHeight[31:0]
-always @(posedge ACLK) begin
-    if (ARESET)
-        int_nHeight[31:0] <= 0;
-    else if (ACLK_EN) begin
-        if (w_hs && waddr == ADDR_NHEIGHT_DATA_0)
-            int_nHeight[31:0] <= (WDATA[31:0] & wmask) | (int_nHeight[31:0] & ~wmask);
-    end
-end
-
-// int_nControl[31:0]
-always @(posedge ACLK) begin
-    if (ARESET)
-        int_nControl[31:0] <= 0;
-    else if (ACLK_EN) begin
-        if (w_hs && waddr == ADDR_NCONTROL_DATA_0)
-            int_nControl[31:0] <= (WDATA[31:0] & wmask) | (int_nControl[31:0] & ~wmask);
+        if (w_hs && waddr == ADDR_NTIMES_DATA_0)
+            int_nTimes[31:0] <= (WDATA[31:0] & wmask) | (int_nTimes[31:0] & ~wmask);
     end
 end
 

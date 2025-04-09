@@ -227,10 +227,43 @@ module tb_axis_to_axi_mm_burst (
 		.s_axis_tready(m_axis_tready)  // Input ready signal from the downstream slave
 	);
 
+	wire fifo_m_axis_tvalid;
+	wire [C_M_AXI_MM_VIDEO_DATA_WIDTH-1:0] fifo_m_axis_tdata;
+	wire fifo_m_axis_tlast;
+	wire fifo_m_axis_tready;
+
+	// axis_fifo #(
+	// 	.DATA_WIDTH(C_M_AXI_MM_VIDEO_DATA_WIDTH),
+	// 	.DEPTH(4)
+	// ) axis_fifo_U (
+	// 	// 時脈與重置
+	// 	.ACLK(ap_clk),      // 全局時脈
+	// 	.ARESETn(ap_rst_n),   // 低電位有效同步重置
+
+	// 	// AXI Stream Slave Interface (寫入 FIFO)
+	// 	.s_axis_tdata(m_axis_tdata),   // 寫入數據
+	// 	.s_axis_tlast(m_axis_tlast),   // 寫入封包最後一筆數據標誌
+	// 	.s_axis_tvalid(m_axis_tvalid),  // 寫入數據有效信號
+	// 	.s_axis_tready(m_axis_tready),  // FIFO 準備好接收寫入數據
+
+	// 	// AXI Stream Master Interface (從 FIFO 讀取)
+	// 	.m_axis_tdata(fifo_m_axis_tdata),   // 讀取數據
+	// 	.m_axis_tlast(fifo_m_axis_tlast),   // 讀取封包最後一筆數據標誌
+	// 	.m_axis_tvalid(fifo_m_axis_tvalid),  // 讀取數據有效信號
+	// 	.m_axis_tready(fifo_m_axis_tready)   // 下游模塊準備好接收讀取數據
+	// );
+
+	assign fifo_m_axis_tvalid = m_axis_tvalid;
+	assign fifo_m_axis_tdata = m_axis_tdata;
+	assign fifo_m_axis_tlast = m_axis_tlast;
+	assign m_axis_tready = fifo_m_axis_tready;
+
 	reg [C_M_AXI_MM_VIDEO_ADDR_WIDTH-1:0] aximm_BASE_ADDR;
 	reg aximm_START;
 	wire aximm_BUSY;
 	wire aximm_DONE;
+
+	// assign fifo_m_axis_tready = 1;
 
 	axis_to_axi_mm_burst #(
 		.AXIS_DATA_WIDTH(C_M_AXI_MM_VIDEO_DATA_WIDTH),           // AXI Stream 數據寬度 (位元)
@@ -251,10 +284,10 @@ module tb_axis_to_axi_mm_burst (
 		// output wire ERROR, // 可選：錯誤狀態
 
 		// AXI Stream Slave Interface (Input)
-		.s_axis_tdata(m_axis_tdata),
-		.s_axis_tlast(m_axis_tlast),
-		.s_axis_tvalid(m_axis_tvalid),
-		.s_axis_tready(m_axis_tready),
+		.s_axis_tdata(fifo_m_axis_tdata),
+		.s_axis_tlast(fifo_m_axis_tlast),
+		.s_axis_tvalid(fifo_m_axis_tvalid),
+		.s_axis_tready(fifo_m_axis_tready),
 
 		// AXI Master Interface (Output to Memory)
 		// Write Address Channel
@@ -285,7 +318,8 @@ module tb_axis_to_axi_mm_burst (
 		START = 'b001,
 		START_DMA = 'b010,
 		NEXT = 'b011,
-		DONE = 'b100;
+		DONE = 'b100,
+		START_0 = 'b101;
 
 	reg [2:0] state, state_next;
 	reg [31:0] times, times_next;
@@ -315,6 +349,10 @@ module tb_axis_to_axi_mm_burst (
 			START: begin
 				data_gen_i_n_value = (nSize >> $clog2(C_M_AXI_MM_VIDEO_DATA_WIDTH / 8));
 				data_gen_i_enable = 1;
+				state_next = START_0;
+			end
+
+			START_0: begin
 				aximm_BASE_ADDR = pDstPxl;
 				aximm_START = 1;
 				state_next = START_DMA;
@@ -322,6 +360,7 @@ module tb_axis_to_axi_mm_burst (
 
 			START_DMA: begin
 				if(aximm_DONE) begin
+				// if(fifo_m_axis_tlast) begin
 					times_next = times + 1;
 					state_next = NEXT;
 				end
@@ -346,10 +385,6 @@ module tb_axis_to_axi_mm_burst (
 
 	always_ff @(posedge ap_clk or negedge ap_rst_n) begin
 		if (!ap_rst_n) begin
-			ap_ready <= 0;
-			ap_done <= 0;
-			ap_idle <= 1;
-
 			state <= IDLE;
 			times <= 0;
 		end else begin

@@ -23,10 +23,10 @@ async def testbench0(dut):
 	dut.ap_rst_n.value = 1;
 	await ClockCycles(dut.ap_clk, 2);
 
-	nSize = 32;
+	nSize = 16;
 	await axil_master.write(0x1C, nSize.to_bytes(4, byteorder));
 
-	nTimes = 2;
+	nTimes = 4;
 	await axil_master.write(0x24, nTimes.to_bytes(4, byteorder));
 
 	pDstPxl = 0x0000A000;
@@ -44,4 +44,3 @@ async def testbench0(dut):
 
 	# await ClockCycles(dut.ap_clk, 40);
 	await RisingEdge(dut.interrupt);
-	await ClockCycles(dut.ap_clk, 20);

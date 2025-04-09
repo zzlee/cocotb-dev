@@ -1,84 +1,47 @@
-import random
-
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer, ClockCycles
 from cocotb.types import LogicArray
 
-from cocotbext.axi import AxiLiteBus, AxiLiteMaster
-from cocotbext.axi import AxiBus, AxiRam
+from cocotbext.axi import (AxiLiteBus, AxiLiteMaster)
+from cocotbext.axi import (AxiBus, AxiSlave, MemoryRegion)
+from cocotbext.axi import (AxiStreamBus, AxiStreamSource, AxiStreamSink, AxiStreamMonitor)
 
 @cocotb.test()
-async def testbench1(dut):
+async def testbench0(dut):
     byteorder = "little";
 
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.ap_clk, 10, units="ns")
     cocotb.start_soon(clock.start(start_high=False))
 
-    axil_master = AxiLiteMaster(AxiLiteBus.from_prefix(dut, "s_axi_control"), dut.clk, dut.rst)
-    axi_ram = AxiRam(AxiBus.from_prefix(dut, "m_axi_mm_video0"), dut.clk, dut.rst, size=2**32)
+    axil_master = AxiLiteMaster(AxiLiteBus.from_prefix(dut, "s_axi_control"), dut.ap_clk, dut.ap_rst_n, reset_active_level=False);
+    axi_slave = AxiSlave(AxiBus.from_prefix(dut, "m_axi_mm_video"), dut.ap_clk, dut.ap_rst_n,
+        reset_active_level=False, target=MemoryRegion(2**32));
 
-    await ClockCycles(dut.clk, 1);
-    dut.rst.value = 1;
-    await ClockCycles(dut.clk, 1);
-    dut.rst.value = 0;
-    await ClockCycles(dut.clk, 1);
+    dut.ap_rst_n.value = 0;
+    await ClockCycles(dut.ap_clk, 2);
+    dut.ap_rst_n.value = 1;
+    await ClockCycles(dut.ap_clk, 2);
 
-    ap_ctrl_resp = await axil_master.read(0x0000, 4);
-    print(ap_ctrl_resp)
+    nSize = 4096;
+    await axil_master.write(0x1C, nSize.to_bytes(4, byteorder));
 
-    width = 64;
-    height = 16;
-    stride = width + 32;
-    control = 1;
-    await axil_master.write(0x0050, width.to_bytes(4, byteorder));
-    await axil_master.read(0x0050, 4);
-    await axil_master.write(0x0058, height.to_bytes(4, byteorder));
-    await axil_master.read(0x0058, 4);
-    await axil_master.write(0x0040, stride.to_bytes(4, byteorder));
-    await axil_master.read(0x0040, 4);
-    await axil_master.write(0x0048, stride.to_bytes(4, byteorder));
-    await axil_master.read(0x0048, 4);
-    await axil_master.write(0x0060, control.to_bytes(4, byteorder));
-    await axil_master.read(0x0060, 4);
+    nTimes = 2160 * 2;
+    await axil_master.write(0x24, nTimes.to_bytes(4, byteorder));
 
-    pDstY0 = 0xA000000;
-    pDstUV0 = pDstY0 + stride * height;
-    pDstY1 = pDstY0 + (stride * height) >> 1;
-    pDstUV1 = pDstUV0 + (stride * height) >> 1;
-    await axil_master.write(0x0010, pDstY0.to_bytes(4, byteorder));
-    await axil_master.read(0x0010, 4);
-    await axil_master.write(0x001C, pDstUV0.to_bytes(4, byteorder));
-    await axil_master.read(0x001C, 4);
-    await axil_master.write(0x0028, pDstY1.to_bytes(4, byteorder));
-    await axil_master.read(0x0028, 4);
-    await axil_master.write(0x0034, pDstUV1.to_bytes(4, byteorder));
-    await axil_master.read(0x0034, 4);
+    pDstPxl = 0x0000A000;
+    await axil_master.write(0x10, pDstPxl.to_bytes(4, byteorder));
 
-    gie = 0x1;
-    ie = 0x1;
-    await axil_master.write(0x0004, gie.to_bytes(4, byteorder));
-    await axil_master.read(0x0004, 4);
-    await axil_master.write(0x0008, ie.to_bytes(4, byteorder));
-    await axil_master.read(0x0008, 4);
+    gie = 0x1; # Global Interrupt Enable
+    ie = 0x1; # enable ap_done interrupt
+    await axil_master.write(0x04, gie.to_bytes(4, byteorder));
+    await axil_master.write(0x08, ie.to_bytes(4, byteorder));
 
-    ap_ctrl = int.from_bytes(ap_ctrl_resp.data, byteorder) | 0x1;
-    ap_ctrl_resp = await axil_master.write(0x0000, ap_ctrl.to_bytes(4, byteorder));
-    print(ap_ctrl_resp)
+    # ap_start
+    ap_ctrl_val = await axil_master.read(0x00, 4);
+    ap_ctrl = int.from_bytes(ap_ctrl_val.data, byteorder) | 0x1;
+    await axil_master.write(0x00, ap_ctrl.to_bytes(4, byteorder));
 
+    # await ClockCycles(dut.ap_clk, 40);
     await RisingEdge(dut.interrupt);
-
-    ap_isr_resp = await axil_master.read(0x000C, 4);
-    print(ap_isr_resp)
-
-    ap_isr = int.from_bytes(ap_isr_resp.data, byteorder) & 0x3;
-    await axil_master.write(0x000C, ap_isr.to_bytes(4, byteorder));
-
-    ap_ctrl_resp = await axil_master.read(0x0000, 4);
-    print(ap_ctrl_resp)
-
-    ap_ctrl_resp = await axil_master.read(0x0000, 4);
-    print(ap_ctrl_resp)
-
-    data = axi_ram.read(pDstY0, stride * height * 2)
-    print(data);
+    # await ClockCycles(dut.ap_clk, 20);
