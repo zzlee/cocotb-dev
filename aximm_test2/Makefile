@@ -36,4 +36,11 @@ TOPLEVEL = tb_axis_to_axi_mm_burst
 MODULE = tb_axis_to_axi_mm_burst
 endif
 
+ifeq (${TARGET},tb_data_gen_axi_mm_burst)
+VERILOG_SOURCES = ./tb_data_gen_axi_mm_burst.sv ./aximm_test2_control_s_axi.v \
+./data_gen_axi_mm_burst.sv
+TOPLEVEL = tb_data_gen_axi_mm_burst
+MODULE = tb_data_gen_axi_mm_burst
+endif
+
 include $(shell cocotb-config --makefiles)/Makefile.sim

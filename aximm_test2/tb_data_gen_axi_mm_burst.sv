@@ -1,6 +1,4 @@
-`timescale 1ns/1ps
-
-module tb_axis_to_axi_mm_burst (
+module tb_data_gen_axi_mm_burst (
 	s_axi_control_AWVALID,
 	s_axi_control_AWREADY,
 	s_axi_control_AWADDR,
@@ -85,9 +83,9 @@ module tb_axis_to_axi_mm_burst (
 	parameter    C_M_AXI_DATA_WIDTH = 32;
 
 	parameter C_S_AXI_CONTROL_WSTRB_WIDTH = (C_S_AXI_CONTROL_DATA_WIDTH / 8);
-	parameter C_S_AXI_WSTRB_WIDTH = (32 / 8);
+	// parameter C_S_AXI_WSTRB_WIDTH = (32 / 8);
 	parameter C_M_AXI_MM_VIDEO_WSTRB_WIDTH = (C_M_AXI_MM_VIDEO_DATA_WIDTH / 8);
-	parameter C_M_AXI_WSTRB_WIDTH = (32 / 8);
+	// parameter C_M_AXI_WSTRB_WIDTH = (32 / 8);
 
 	input wire  s_axi_control_AWVALID;
 	output wire  s_axi_control_AWREADY;
@@ -128,7 +126,7 @@ module tb_axis_to_axi_mm_burst (
 	output wire [C_M_AXI_MM_VIDEO_WSTRB_WIDTH - 1:0] m_axi_mm_video_WSTRB;
 	output wire  m_axi_mm_video_WLAST;
 	output wire [C_M_AXI_MM_VIDEO_ID_WIDTH - 1:0] m_axi_mm_video_WID;
-	output wire [C_M_AXI_MM_VIDEO_WUSER_WIDTH - 1:0] m_axi_mm_video_WUSER;
+	output  [C_M_AXI_MM_VIDEO_WUSER_WIDTH - 1:0] m_axi_mm_video_WUSER;
 	output wire  m_axi_mm_video_ARVALID;
 	input wire  m_axi_mm_video_ARREADY;
 	output wire [C_M_AXI_MM_VIDEO_ADDR_WIDTH - 1:0] m_axi_mm_video_ARADDR;
@@ -155,10 +153,10 @@ module tb_axis_to_axi_mm_burst (
 	input wire [C_M_AXI_MM_VIDEO_ID_WIDTH - 1:0] m_axi_mm_video_BID;
 	input wire [C_M_AXI_MM_VIDEO_BUSER_WIDTH - 1:0] m_axi_mm_video_BUSER;
 
-	wire    ap_rst_n_inv;
-	wire   [63:0] pDstPxl;
-	wire   [31:0] nSize;
-	wire   [31:0] nTimes;
+	reg    ap_rst_n_inv;
+	reg   [63:0] pDstPxl;
+	reg   [31:0] nSize;
+	reg   [31:0] nTimes;
 	wire    ap_start;
 	reg    ap_ready;
 	reg    ap_done;
@@ -171,9 +169,9 @@ module tb_axis_to_axi_mm_burst (
 	assign m_axi_mm_video_AWUSER = 1'b0;
 	assign m_axi_mm_video_AWREGION = 4'b0000;
 	assign m_axi_mm_video_AWQOS = 4'b0000;
-
+	assign m_axi_mm_video_AWID = 0;
 	assign m_axi_mm_video_WID = 0;
-	assign m_axi_mm_video_WUSER = 1'b0;
+	assign m_axi_mm_video_WUSER = 0;
 
 	aximm_test2_control_s_axi #(
 		.C_S_AXI_ADDR_WIDTH( C_S_AXI_CONTROL_ADDR_WIDTH ),
@@ -210,60 +208,31 @@ module tb_axis_to_axi_mm_burst (
 		.ap_idle(ap_idle)
 	);
 
-	reg data_gen_ap_rst_n;
-	reg data_gen_i_enable;
-	reg [31:0] data_gen_i_n_value;
-	wire m_axis_tvalid;
-	wire [C_M_AXI_MM_VIDEO_DATA_WIDTH-1:0] m_axis_tdata;
-	wire m_axis_tlast;
-	wire m_axis_tready;
-
-	axis_number_generator #(
-		.DATA_WIDTH(C_M_AXI_MM_VIDEO_DATA_WIDTH)
-	) axis_number_generator_U (
-		// --- System Signals ---
-		.aclk(ap_clk),         // Clock
-		.aresetn(data_gen_ap_rst_n),      // Asynchronous Reset, active low
-
-		// --- Control Inputs ---
-		.i_enable(data_gen_i_enable),     // Enable signal to start generation for a new sequence
-		.i_n_value(data_gen_i_n_value), // The upper limit 'N' (generates 1, 2, ..., N)
-
-		// --- AXI Stream Master Interface ---
-		.m_axis_tvalid(m_axis_tvalid), // Output valid signal
-		.m_axis_tdata(m_axis_tdata),  // Output data (the numbers)
-		.m_axis_tlast(m_axis_tlast),  // Output last signal (high for the last number N)
-		.s_axis_tready(m_axis_tready)  // Input ready signal from the downstream slave
-	);
-
 	reg [C_M_AXI_MM_VIDEO_ADDR_WIDTH-1:0] aximm_BASE_ADDR;
+	reg [15:0] aximm_BYTES;
+	reg [15:0] aximm_REPEAT;
 	reg aximm_START;
 	wire aximm_BUSY;
 	wire aximm_DONE;
 
-	axis_to_axi_mm_burst #(
-		.AXIS_DATA_WIDTH(C_M_AXI_MM_VIDEO_DATA_WIDTH),           // AXI Stream 數據寬度 (位元)
+	data_gen_axi_mm_burst #(
 		.AXI_DATA_WIDTH(C_M_AXI_MM_VIDEO_DATA_WIDTH),           // AXI MM 數據寬度 (位元) - 假設與 AXIS 相同
 		.AXI_ADDR_WIDTH(C_M_AXI_MM_VIDEO_ADDR_WIDTH),           // AXI MM 地址寬度 (位元)
 		.MAX_BURST_LEN(16)           // 最大 AXI 突發長度 (beat count, e.g., 16, 64, 256)
 												  // AXI4 支持最大 256 (AWLEN=255)
-	) axis_to_axi_mm_burst_U (
+	) data_gen_axi_mm_burst_U (
 		// Global Signals
 		.ACLK(ap_clk),
 		.ARESETn(ap_rst_n),
 
 		// Configuration Input
 		.BASE_ADDR(aximm_BASE_ADDR), // 目標內存起始地址
+		.BYTES(aximm_BYTES),
+		.REPEAT(aximm_REPEAT),
 		.START(aximm_START),       // 啟動傳輸信號 (pulse or level)
 		.BUSY(aximm_BUSY),        // 模塊忙碌狀態
 		.DONE(aximm_DONE),        // 傳輸完成信號 (pulse)
 		// output wire ERROR, // 可選：錯誤狀態
-
-		// AXI Stream Slave Interface (Input)
-		.s_axis_tdata(m_axis_tdata),
-		.s_axis_tlast(m_axis_tlast),
-		.s_axis_tvalid(m_axis_tvalid),
-		.s_axis_tready(m_axis_tready),
 
 		// AXI Master Interface (Output to Memory)
 		// Write Address Channel
@@ -292,23 +261,16 @@ module tb_axis_to_axi_mm_burst (
 	localparam
 		IDLE = 'b000,
 		START = 'b001,
-		START_DMA = 'b010,
-		NEXT = 'b011,
-		DONE = 'b100,
-		START_0 = 'b101;
+		DONE = 'b111;
 
 	reg [2:0] state, state_next;
-	reg [31:0] times, times_next;
 
-	always @(*) begin
+	always_comb begin
 		state_next = state;
 		ap_ready = 0;
 		ap_done = 0;
 		ap_idle = 0;
-		data_gen_ap_rst_n = 1;
-		data_gen_i_enable = 0;
 		aximm_START = 0;
-		times_next = times;
 
 		case(state)
 			IDLE: begin
@@ -316,37 +278,17 @@ module tb_axis_to_axi_mm_burst (
 
 				if(ap_start) begin
 					ap_ready = 1;
-					data_gen_ap_rst_n = 0;
-					times_next = 0;
+					aximm_BASE_ADDR = pDstPxl;
+					aximm_BYTES = nSize;
+					aximm_REPEAT = nTimes;
+					aximm_START = 1;
 					state_next = START;
 				end
 			end
 
 			START: begin
-				data_gen_i_n_value = (nSize >> $clog2(C_M_AXI_MM_VIDEO_DATA_WIDTH / 8));
-				data_gen_i_enable = 1;
-				state_next = START_0;
-			end
-
-			START_0: begin
-				aximm_BASE_ADDR = pDstPxl;
-				aximm_START = 1;
-				state_next = START_DMA;
-			end
-
-			START_DMA: begin
 				if(aximm_DONE) begin
-					times_next = times + 1;
-					state_next = NEXT;
-				end
-			end
-
-			NEXT: begin
-				if(times == nTimes) begin
 					state_next = DONE;
-				end else begin
-					data_gen_ap_rst_n = 0;
-					state_next = START;
 				end
 			end
 
@@ -358,13 +300,11 @@ module tb_axis_to_axi_mm_burst (
 
 	end
 
-	always @(posedge ap_clk or negedge ap_rst_n) begin
+	always_ff @(posedge ap_clk or negedge ap_rst_n) begin
 		if (!ap_rst_n) begin
 			state <= IDLE;
-			times <= 0;
 		end else begin
 			state <= state_next;
-			times <= times_next;
 		end
 	end
 endmodule

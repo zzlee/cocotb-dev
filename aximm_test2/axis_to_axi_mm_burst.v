@@ -170,17 +170,14 @@ module axis_to_axi_mm_burst #(
                 BUSY = 1'b0;
                 tlast_seen_next = 1'b0; // Clear flag
                 beats_written_next = '0; // Reset counter
-                if (START && !start_latch) begin
+                if (START) begin
                     // Need first piece of data to start burst
                     if (s_axis_tvalid) begin // Make sure there's data ready
                         state_next = START_BURST;
                         current_addr_next = BASE_ADDR;
-                        start_latch = 1'b1;
                         // Note: The first piece of data isn't consumed here,
                         // skid buffer logic handles accepting it later.
                     end
-                 end else if (!START) begin
-                    start_latch = 1'b0;
                 end
             end
 
