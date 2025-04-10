@@ -47,7 +47,6 @@ module data_gen_axi_mm_burst #(
 	input  wire                       m_axi_bvalid,
 	output reg                        m_axi_bready
 );
-
 	// Check if widths match (for simplicity)
 	initial begin
 		if (MAX_BURST_LEN > 256 || MAX_BURST_LEN < 1) begin
@@ -75,8 +74,20 @@ module data_gen_axi_mm_burst #(
 	reg                       start_latch;
 	reg [15:0]                bytes_written_reg, bytes_written_next;
 	reg [15:0]                repeat_times_reg, repeat_times_next;
+	reg [7:0]                 data_seed_reg, data_seed_next;
+	reg [AXI_DATA_WIDTH-1:0]  data_gen_reg;
 
 	// Internal Signals
+	wire [AXI_DATA_WIDTH-1:0] data_gen_out;
+	assign data_gen_out = data_gen_reg;
+	generate
+		genvar i;
+		for (i = 0; i < AXI_DATA_WIDTH / 8; i = i + 1) begin
+			always_comb begin
+				data_gen_reg[8*(i+1)-1:8*i] = data_seed_reg + i;
+			end
+		end
+	endgenerate
 
 	// =========================================================================
 	// State Machine Logic (Combinational)
@@ -88,6 +99,7 @@ module data_gen_axi_mm_burst #(
 		beats_written_next = beats_written_reg;
 		bytes_written_next = bytes_written_reg;
 		repeat_times_next = repeat_times_reg;
+		data_seed_next = data_seed_reg;
 
 		m_axi_awvalid = 1'b0;
 		m_axi_wvalid = 1'b0;
@@ -98,7 +110,7 @@ module data_gen_axi_mm_burst #(
 		DONE = 1'b0;
 
 		// AXI W channel assignments (driven by skid buffer output)
-		m_axi_wdata = 0;
+		m_axi_wdata = data_gen_out;
 		m_axi_wvalid = (state_reg == WRITE_BURST); // WVALID is skid_valid only in WRITE_BURST state
 
 		case (state_reg)
@@ -108,38 +120,62 @@ module data_gen_axi_mm_burst #(
 				repeat_times_next = '0;
 				if (START) begin
 					state_next = START_BURST;
+					data_seed_next = 'h80;
 					current_addr_next = BASE_ADDR;
 				end
 			end
 
 			START_BURST: begin
 				beats_written_next = '0;
-				state_next = WAIT_AWREADY;
+
+				m_axi_awvalid = 1;
+				 // Address is current_addr_reg
+				if (m_axi_awready) begin
+					state_next = WAIT_AWREADY;
+				end
 			end
 
 			WAIT_AWREADY: begin
+				// Ensure AWVALID is low before starting W channel
 				state_next = WRITE_BURST;
 			end
 
 			WRITE_BURST: begin
-				beats_written_next = beats_written_reg + 1;
-				bytes_written_next = bytes_written_reg + AXI_DATA_WIDTH/8;
-				if(beats_written_reg == C_AXI_AWLEN) begin
-					state_next = WAIT_BRESP;
+				m_axi_wlast = (beats_written_reg == C_AXI_AWLEN);
+				data_seed_next = data_seed_reg + 1;
+
+				// Check if data is consumed by AXI W channel
+				if (m_axi_wvalid && m_axi_wready) begin // AXI Data beat accepted (axi_w_fire)
+					beats_written_next = beats_written_reg + 1;
+					bytes_written_next = bytes_written_reg + AXI_DATA_WIDTH/8;
+
+					if (m_axi_wlast) begin // Last beat of burst is being accepted
+						// Update address for the *next* potential burst
+						current_addr_next = current_addr_reg + (MAX_BURST_LEN * (AXI_DATA_WIDTH/8));
+						state_next = WAIT_BRESP;
+					end else begin
+						// Burst continues, stay in WRITE_BURST
+						state_next = WRITE_BURST;
+					end
 				end
 			end
 
 			WAIT_BRESP: begin
-				if(bytes_written_reg == BYTES) begin
-					bytes_written_next = '0;
-					repeat_times_next = repeat_times_reg + 1;
-					if(repeat_times_reg == REPEAT - 1) begin
-						state_next = FINISH;
+				m_axi_bready = 1; // Ready to accept response
+				if (m_axi_bvalid) begin // Response received (axi_b_fire)
+					if(bytes_written_reg == BYTES) begin
+						bytes_written_next = '0;
+						repeat_times_next = repeat_times_reg + 1;
+						if(repeat_times_reg == REPEAT - 1) begin
+							state_next = FINISH;
+						end else begin
+							current_addr_next = BASE_ADDR;
+							data_seed_next = 'h80;
+							state_next = START_BURST;
+						end
 					end else begin
 						state_next = START_BURST;
 					end
-				end else begin
-					state_next = START_BURST;
 				end
 			end
 
@@ -162,6 +198,7 @@ module data_gen_axi_mm_burst #(
 			beats_written_reg <= '0;
 			bytes_written_reg <= '0;
 			repeat_times_reg <= '0;
+			data_seed_reg <= '0;
 			start_latch <= 1'b0;
 		end else begin
 			state_reg <= state_next;
@@ -169,6 +206,7 @@ module data_gen_axi_mm_burst #(
 			beats_written_reg <= beats_written_next;
 			bytes_written_reg <= bytes_written_next;
 			repeat_times_reg <= repeat_times_next;
+			data_seed_reg <= data_seed_next;
 
 			 // Latch logic for START signal
 			if (state_reg == IDLE) begin
