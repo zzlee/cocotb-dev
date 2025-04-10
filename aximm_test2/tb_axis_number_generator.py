@@ -19,7 +19,7 @@ async def testbench0(dut):
 
 	axis_sink = AxiStreamSink(AxiStreamBus.from_prefix(dut, "m_axis"), dut.ap_clk, dut.ap_rst_n, reset_active_level=False)
 
-	dut.i_n_value.value = 32;
+	dut.i_n_value.value = 16;
 	dut.i_enable.value = 1;
 	await ClockCycles(dut.ap_clk, 1);
 	dut.i_enable.value = 0;

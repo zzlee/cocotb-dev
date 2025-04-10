@@ -23,7 +23,7 @@ async def testbench0(dut):
 	dut.ap_rst_n.value = 1;
 	await ClockCycles(dut.ap_clk, 2);
 
-	nSize = 64;
+	nSize = 128;
 	await axil_master.write(0x1C, nSize.to_bytes(4, byteorder));
 
 	nTimes = 4;

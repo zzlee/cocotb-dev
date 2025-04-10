@@ -71,11 +71,11 @@ module data_gen_axi_mm_burst #(
 	// Internal Registers
 	reg [AXI_ADDR_WIDTH-1:0]  current_addr_reg, current_addr_next;
 	reg [BURST_CNT_WIDTH-1:0] beats_written_reg, beats_written_next; // 當前突發已寫入的 beat 數
-	reg                       start_latch;
 	reg [15:0]                bytes_written_reg, bytes_written_next;
 	reg [15:0]                repeat_times_reg, repeat_times_next;
 	reg [7:0]                 data_seed_reg, data_seed_next;
 	reg [AXI_DATA_WIDTH-1:0]  data_gen_reg;
+	reg [1:0]                 outstanding_count_reg, outstanding_count_next;
 
 	// Internal Signals
 	wire [AXI_DATA_WIDTH-1:0] data_gen_out;
@@ -100,6 +100,7 @@ module data_gen_axi_mm_burst #(
 		bytes_written_next = bytes_written_reg;
 		repeat_times_next = repeat_times_reg;
 		data_seed_next = data_seed_reg;
+		outstanding_count_next = outstanding_count_reg;
 
 		m_axi_awvalid = 1'b0;
 		m_axi_wvalid = 1'b0;
@@ -109,9 +110,9 @@ module data_gen_axi_mm_burst #(
 		BUSY = 1'b1; // Default busy
 		DONE = 1'b0;
 
-		// AXI W channel assignments (driven by skid buffer output)
+		// AXI W channel assignments (driven by data_gen_out)
 		m_axi_wdata = data_gen_out;
-		m_axi_wvalid = (state_reg == WRITE_BURST); // WVALID is skid_valid only in WRITE_BURST state
+		m_axi_wvalid = (state_reg == WRITE_BURST); // WVALID is valid only in WRITE_BURST state
 
 		case (state_reg)
 			IDLE: begin
@@ -128,7 +129,7 @@ module data_gen_axi_mm_burst #(
 			START_BURST: begin
 				beats_written_next = '0;
 
-				m_axi_awvalid = 1;
+				m_axi_awvalid = '1;
 				 // Address is current_addr_reg
 				if (m_axi_awready) begin
 					state_next = WAIT_AWREADY;
@@ -152,6 +153,7 @@ module data_gen_axi_mm_burst #(
 					if (m_axi_wlast) begin // Last beat of burst is being accepted
 						// Update address for the *next* potential burst
 						current_addr_next = current_addr_reg + (MAX_BURST_LEN * (AXI_DATA_WIDTH/8));
+						outstanding_count_next = outstanding_count_reg + 1;
 						state_next = WAIT_BRESP;
 					end else begin
 						// Burst continues, stay in WRITE_BURST
@@ -161,8 +163,7 @@ module data_gen_axi_mm_burst #(
 			end
 
 			WAIT_BRESP: begin
-				m_axi_bready = 1; // Ready to accept response
-				if (m_axi_bvalid) begin // Response received (axi_b_fire)
+				if(outstanding_count_reg == 1) begin
 					if(bytes_written_reg == BYTES) begin
 						bytes_written_next = '0;
 						repeat_times_next = repeat_times_reg + 1;
@@ -199,7 +200,7 @@ module data_gen_axi_mm_burst #(
 			bytes_written_reg <= '0;
 			repeat_times_reg <= '0;
 			data_seed_reg <= '0;
-			start_latch <= 1'b0;
+			outstanding_count_reg <= '0;
 		end else begin
 			state_reg <= state_next;
 			current_addr_reg <= current_addr_next;
@@ -207,12 +208,11 @@ module data_gen_axi_mm_burst #(
 			bytes_written_reg <= bytes_written_next;
 			repeat_times_reg <= repeat_times_next;
 			data_seed_reg <= data_seed_next;
+			outstanding_count_reg <= outstanding_count_next;
 
-			 // Latch logic for START signal
-			if (state_reg == IDLE) begin
-				start_latch <= state_next == IDLE ? 1'b0 : 1'b1;
-			end else if (state_next == IDLE) begin
-				start_latch <= 1'b0;
+			m_axi_bready <= (outstanding_count_reg > 0);
+			if(m_axi_bvalid && m_axi_bready) begin
+				outstanding_count_reg <= outstanding_count_reg - 1;
 			end
 		end
 	end
@@ -230,7 +230,7 @@ module data_gen_axi_mm_burst #(
 	// m_axi_awvalid assigned in state machine logic
 
 	// --- Write Data Channel ---
-	// m_axi_wdata assigned combinatorially from skid buffer output
+	// m_axi_wdata assigned combinatorially from data_gen_out
 	assign m_axi_wstrb = {(AXI_DATA_WIDTH/8){1'b1}}; // Assume writing all bytes
 	// m_axi_wlast assigned in state machine logic
 	// m_axi_wvalid assigned in state machine logic
